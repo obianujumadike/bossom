@@ -30,6 +30,7 @@ def validate_mammogram_dicom(path):
     body_part=getattr(dataset, "BodyPartExamined",None)
     view_position = getattr(dataset, "ViewPosition", None)
     laterality = getattr(dataset, "ImageLaterality", None)
+    presentation_intent = getattr(dataset, "PresentationIntentType", None)
 
     if modality!="MG":
         raise ValueError(f"File is not identified as a mammogram image :{path}")
@@ -39,9 +40,14 @@ def validate_mammogram_dicom(path):
         raise ValueError(f"Unsupported view position '{view_position}' in file: {path}")
     if laterality not in ["L", "R"]:
         raise ValueError(f"Unsupported laterality '{laterality}' in file : {path}")
+    if presentation_intent != "FOR PRESENTATION":
+        raise ValueError(f"Unsupported presentation intent '{presentation_intent}' in file: {path}")
     
-    return {"modality": modality,"body_part": body_part,"view_position": view_position,"laterality": laterality,}
+    return {"modality": modality,"body_part": body_part,"view_position": view_position,"laterality": laterality,"presentation_intent": presentation_intent}
 
+# def inspect_mammogram_type(path):
+#     path=Path(path)
+#     pydicom.dcmread(path, stop_before_pixels=True)
 
 def validate_mammogram_views(ccl_path, ccr_path, mlol_path, mlor_path):
     files={"CCL": ccl_path, "CCR":ccr_path, "MLOL":mlol_path, "MLOR":mlor_path}
@@ -69,16 +75,17 @@ def predict_risk(ccl_path,ccr_path,mlol_path,mlor_path):
     mlol_path = Path(mlol_path)
     mlor_path = Path(mlor_path)
 
-    files_to_validate = {
-        "CCL": ccl_path,
-        "CCR": ccr_path,
-        "MLOL": mlol_path,
-        "MLOR": mlor_path,
-    }
+    # files_to_validate = {
+    #     "CCL": ccl_path,
+    #     "CCR": ccr_path,
+    #     "MLOL": mlol_path,
+    #     "MLOR": mlor_path,
+    # }
 
-    for view_name, path in files_to_validate.items():
-        if not path.is_file():
-            raise FileNotFoundError(f"{view_name} mammogram file not found: {path}")
+    validate_mammogram_views(ccl_path, ccr_path, mlol_path, mlor_path) 
+    # for view_name, path in files_to_validate.items():
+    #     if not path.is_file():
+    #         raise FileNotFoundError(f"{view_name} mammogram file not found: {path}")
 
     with (open(ccl_path, "rb") as ccl,open(ccr_path, "rb") as ccr,open(mlol_path, "rb") as mlol,open(mlor_path, "rb") as mlor,):
         files = [("dicom", ccl),("dicom", ccr),("dicom", mlol),("dicom", mlor),]
