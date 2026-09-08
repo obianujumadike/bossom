@@ -34,9 +34,6 @@ yarn-error.log*
 .env
 secrets.env
 
-# Python virtual environments
-.venv/
-
 # vercel
 .vercel
 
