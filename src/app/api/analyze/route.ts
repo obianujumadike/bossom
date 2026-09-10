@@ -20,7 +20,6 @@ export async function POST(request: Request) {
     const { imageId, caseId } = body
     log.info('POST /api/analyze', { userId: user.id, caseId, imageId })
 
-    // Verify the case belongs to this user
     const { data: caseData, error: caseErr } = await supabase
       .from('cases')
       .select('id')
@@ -36,7 +35,6 @@ export async function POST(request: Request) {
       return api.notFound('Case not found')
     }
 
-    // Create pending analysis record
     const { data: analysis, error: insertErr } = await supabase
       .from('analyses')
       .insert({
@@ -77,7 +75,6 @@ export async function POST(request: Request) {
       }
 
       if (process.env.GCLOUD_MODEL_ENDPOINT) {
-        // Fetch the image's public URL from storage
         const { data: imgData, error: imgErr } = await supabase
           .from('images')
           .select('file_path')
@@ -92,29 +89,38 @@ export async function POST(request: Request) {
           .from('mammograms')
           .getPublicUrl(imgData.file_path)
 
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-        if (process.env.GCLOUD_API_KEY) headers['X-API-Key'] = process.env.GCLOUD_API_KEY
+        const imageResp = await fetch(urlData.publicUrl)
+        if (!imageResp.ok) throw new Error(`Failed to fetch image: ${imageResp.status}`)
+        const imageBlob = await imageResp.blob()
 
-        const resp = await fetch(`${process.env.GCLOUD_MODEL_ENDPOINT}/analyze`, {
+        const formData = new FormData()
+        formData.append('file', imageBlob, 'mammogram.png')
+
+        const resp = await fetch(`${process.env.GCLOUD_MODEL_ENDPOINT}/api/analyze`, {
           method: 'POST',
-          headers,
-          body: JSON.stringify({ image_url: urlData.publicUrl }),
+          body: formData,
         })
         if (!resp.ok) throw new Error(`AI service returned ${resp.status}`)
 
         const raw = await resp.json()
+        const malignancyProb = raw.probability_malignant ?? 0
+
+        const approxBirads = malignancyProb >= 0.7 ? 5
+          : malignancyProb >= 0.4 ? 4
+          : malignancyProb >= 0.1 ? 3
+          : 2
+
         result = {
-          birads_category: raw.birads,
-          confidence_score: raw.confidence,
-          malignancy_probability: raw.malignancy_probability ?? 0,
-          overall_assessment: raw.findings_text,
+          birads_category: approxBirads,
+          confidence_score: raw.decision_confidence ?? 0,
+          malignancy_probability: malignancyProb,
+          overall_assessment: raw.prediction,
           regions: [],
         }
       } else if (process.env.NODE_ENV === 'production') {
         await supabase.from('analyses').update({ analysis_status: 'failed' }).eq('id', analysis.id)
         return api.serviceUnavailable('AI model endpoint is not configured. Contact your administrator.')
       } else {
-        // Mock result for development only
         const categories = [1, 2, 3, 4]
         const birads = categories[Math.floor(Math.random() * categories.length)]
         const confidence = 0.75 + Math.random() * 0.2
@@ -145,7 +151,6 @@ export async function POST(request: Request) {
         await new Promise(resolve => setTimeout(resolve, 1500))
       }
 
-      // Persist results
       const { error: updateErr } = await supabase
         .from('analyses')
         .update({
