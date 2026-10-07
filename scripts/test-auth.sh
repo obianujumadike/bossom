@@ -37,13 +37,22 @@ else
     echo "❌ Login page failed (Status: $LOGIN_STATUS)"
 fi
 
-# Test auth callback
-echo "Testing /auth/callback..."
-CALLBACK_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/auth/callback")
-if [[ "$CALLBACK_STATUS" =~ ^[34] ]]; then
-    echo "✅ Auth callback endpoint working (Status: $CALLBACK_STATUS)"
+# Test forgot-password page
+echo "Testing /forgot-password..."
+FORGOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/forgot-password")
+if [ "$FORGOT_STATUS" = "200" ]; then
+    echo "✅ Forgot-password page accessible"
 else
-    echo "❌ Auth callback failed (Status: $CALLBACK_STATUS)"
+    echo "❌ Forgot-password page failed (Status: $FORGOT_STATUS)"
+fi
+
+# Test auth proxy rejects non-POST
+echo "Testing /api/auth..."
+AUTH_PROXY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/api/auth")
+if [ "$AUTH_PROXY_STATUS" = "405" ] || [ "$AUTH_PROXY_STATUS" = "404" ]; then
+    echo "✅ Auth proxy only accepts POST (Status: $AUTH_PROXY_STATUS)"
+else
+    echo "❌ Auth proxy unexpected status: $AUTH_PROXY_STATUS"
 fi
 
 # Test protected route (dashboard)
@@ -77,6 +86,9 @@ echo ""
 echo "Manual testing steps:"
 echo "1. Visit $BASE_URL/signup"
 echo "2. Create a test account with email signup"
-echo "3. Check your email for verification"
+echo "3. Enter the 6-digit code from the email (on a dev deployment with"
+echo "   DEV_LOG_AUTH_CODES=true it is printed by: npx convex logs)"
 echo "4. Try logging in at $BASE_URL/login"
 echo "5. Verify redirect to dashboard after login"
+echo ""
+echo "Automated flow checks: npx tsx scripts/e2e-convex.ts"
