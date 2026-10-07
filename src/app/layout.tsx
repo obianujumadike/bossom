@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ReactNode } from "react";
+import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
+import { ConvexClientProvider } from "@/lib/convex/ConvexClientProvider";
 import { AuthProvider } from "@/lib/auth/context";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -51,34 +53,40 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Bossom" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="msapplication-TileColor" content="#ED205A" />
-        <meta name="msapplication-tap-highlight" content="no" />
-      </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <AuthProvider>
-          {children}
-          <ToastContainer
-            position="top-right"
-            autoClose={4000}
-            hideProgressBar={false}
-            newestOnTop
-            closeOnClick
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="light"
-            toastClassName="!rounded-xl !shadow-lg !text-sm !font-medium"
-          />
-        </AuthProvider>
-      </body>
-    </html>
+    // inMemory: the access token is never written to localStorage; the
+    // refresh token lives only in an httpOnly cookie.
+    <ConvexAuthNextjsServerProvider storage="inMemory" shouldHandleCode={false}>
+      <html lang="en">
+        <head>
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+          <meta name="apple-mobile-web-app-title" content="Bossom" />
+          <meta name="mobile-web-app-capable" content="yes" />
+          <meta name="msapplication-TileColor" content="#ED205A" />
+          <meta name="msapplication-tap-highlight" content="no" />
+        </head>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
+          <ConvexClientProvider>
+            <AuthProvider>
+              {children}
+              <ToastContainer
+                position="top-right"
+                autoClose={4000}
+                hideProgressBar={false}
+                newestOnTop
+                closeOnClick
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="light"
+                toastClassName="!rounded-xl !shadow-lg !text-sm !font-medium"
+              />
+            </AuthProvider>
+          </ConvexClientProvider>
+        </body>
+      </html>
+    </ConvexAuthNextjsServerProvider>
   );
 }

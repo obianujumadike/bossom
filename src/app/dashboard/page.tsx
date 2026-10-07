@@ -20,7 +20,6 @@ import {
 import { BossomLogo } from '@/components/ui/BossomLogo'
 import { componentStyles } from '@/lib/design-system'
 import { useAuth } from '@/lib/auth/context'
-import { signOut as serverSignOut } from '@/app/auth/actions'
 
 interface DashboardData {
   total_cases: number
@@ -42,7 +41,7 @@ interface RecentCase {
 }
 
 export default function DashboardPage() {
-  const { profile, user } = useAuth()
+  const { profile, user, signOut } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -60,7 +59,7 @@ export default function DashboardPage() {
   }, [])
 
   const handleSignOut = async () => {
-    await serverSignOut()
+    await signOut()
   }
 
   useEffect(() => {

@@ -1,122 +1,71 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { User } from '@supabase/supabase-js'
+import { createContext, useContext } from 'react'
+import { useConvexAuth, useQuery } from 'convex/react'
+import { useAuthActions } from '@convex-dev/auth/react'
+import { api } from '@/convex/_generated/api'
+import type { FunctionReturnType } from 'convex/server'
 
-interface UserProfile {
+type UserProfile = NonNullable<FunctionReturnType<typeof api.users.me>>
+
+interface AuthUser {
   id: string
-  full_name?: string
   email: string
-  medical_license_number?: string
-  specialization?: string
-  hospital_affiliation?: string
-  role?: string
-  avatar_url?: string
-  created_at: string
-  updated_at: string
 }
 
 interface AuthContextType {
-  user: User | null
+  user: AuthUser | null
   profile: UserProfile | null
   loading: boolean
   signOut: () => Promise<void>
+  /** Kept for existing callers; the profile is a live Convex query now. */
   refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+/**
+ * The PWA service worker caches pages and API responses. Clearing them on
+ * sign-out stops the next person on a shared machine from seeing cached
+ * clinical data.
+ */
+async function clearServiceWorkerCaches() {
+  if (typeof caches === 'undefined') return
+  try {
+    const keys = await caches.keys()
+    await Promise.all(keys.map(key => caches.delete(key)))
+  } catch {
+    // Cache Storage can be unavailable (private mode); nothing to clear then.
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const { isLoading, isAuthenticated } = useConvexAuth()
+  const me = useQuery(api.users.me, isAuthenticated ? {} : 'skip')
+  const { signOut: convexSignOut } = useAuthActions()
 
-  const fetchProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single()
-      
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error)
-        return null
-      }
-      
-      return data as UserProfile
-    } catch (error) {
-      console.error('Error in fetchProfile:', error)
-      return null
-    }
-  }
-
-  const refreshProfile = async () => {
-    if (user) {
-      const profileData = await fetchProfile(user.id)
-      setProfile(profileData)
-    }
-  }
+  const profile = isAuthenticated ? (me ?? null) : null
+  const loading = isLoading || (isAuthenticated && me === undefined)
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
-    window.location.replace('/login')
+    try {
+      await convexSignOut()
+    } finally {
+      await clearServiceWorkerCaches()
+      window.location.replace('/login')
+    }
   }
 
-  useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession()
-      
-      if (error) {
-        console.error('Error getting session:', error)
-        setLoading(false)
-        return
-      }
-
-      setUser(session?.user ?? null)
-      
-      if (session?.user) {
-        const profileData = await fetchProfile(session.user.id)
-        setProfile(profileData)
-      }
-      
-      setLoading(false)
-    }
-
-    getInitialSession()
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null)
-      
-      if (session?.user) {
-        const profileData = await fetchProfile(session.user.id)
-        setProfile(profileData)
-      } else {
-        setProfile(null)
-      }
-      
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase.auth])
-
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      profile, 
-      loading, 
-      signOut, 
-      refreshProfile 
-    }}>
+    <AuthContext.Provider
+      value={{
+        user: profile ? { id: profile.id, email: profile.email } : null,
+        profile,
+        loading,
+        signOut,
+        refreshProfile: async () => {},
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
