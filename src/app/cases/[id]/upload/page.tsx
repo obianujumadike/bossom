@@ -69,10 +69,40 @@ export default function UploadPage() {
     })
   }, [params.id])
 
-  const uploadFileToApi = (uploadFile: UploadedFile) => {
+  const markFailed = (fileId: string, message: string) => {
+    setUploadedFiles(prev => prev.map(f =>
+      f.id === fileId ? { ...f, status: 'error' as const, error: message } : f
+    ))
+    toast.error(`Upload failed: ${message}`)
+  }
+
+  const apiError = async (res: Response, fallback: string) => {
+    const body = await res.json().catch(() => null)
+    return body?.error?.message || fallback
+  }
+
+  // Three steps: the server signs an upload for this case, the browser sends
+  // the file straight to Cloudinary (so large DICOMs never pass through a
+  // serverless function), then the server verifies Cloudinary's response and
+  // records the image.
+  const uploadFileToApi = async (uploadFile: UploadedFile) => {
+    let signed: { uploadUrl: string; maxBytes: number; fields: Record<string, string | number> }
+    try {
+      const res = await fetch(`/api/cases/${params.id}/images/sign`, { method: 'POST' })
+      if (res.status === 401) { router.push('/login'); return }
+      if (!res.ok) return markFailed(uploadFile.id, await apiError(res, 'Could not start the upload'))
+      signed = (await res.json()).data
+    } catch {
+      return markFailed(uploadFile.id, 'Network error during upload')
+    }
+
+    if (uploadFile.file.size > signed.maxBytes) {
+      return markFailed(uploadFile.id, `File too large (max ${Math.round(signed.maxBytes / 1024 / 1024)} MB)`)
+    }
+
     const form = new FormData()
+    for (const [key, value] of Object.entries(signed.fields)) form.append(key, String(value))
     form.append('file', uploadFile.file)
-    form.append('laterality', 'Left')
 
     const xhr = new XMLHttpRequest()
 
@@ -87,35 +117,39 @@ export default function UploadPage() {
       }
     })
 
-    xhr.addEventListener('load', () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        const { data: image } = JSON.parse(xhr.responseText)
+    xhr.addEventListener('load', async () => {
+      let result: any = null
+      try { result = JSON.parse(xhr.responseText) } catch {}
+      if (xhr.status < 200 || xhr.status >= 300 || !result?.public_id) {
+        return markFailed(uploadFile.id, result?.error?.message || 'Upload failed')
+      }
+
+      try {
+        const res = await fetch(`/api/cases/${params.id}/images`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            upload: result,
+            fileName: uploadFile.file.name,
+            fileType: uploadFile.file.type,
+            laterality: 'Left',
+          }),
+        })
+        if (!res.ok) return markFailed(uploadFile.id, await apiError(res, 'Could not save the upload'))
+        const { data: image } = await res.json()
         setUploadedFiles(prev => prev.map(f =>
           f.id === uploadFile.id
             ? { ...f, progress: 100, status: 'success' as const, serverImageId: image.id }
             : f
         ))
-      } else {
-        let errMsg = 'Upload failed'
-        try { errMsg = JSON.parse(xhr.responseText)?.error?.message || errMsg } catch {}
-        setUploadedFiles(prev => prev.map(f =>
-          f.id === uploadFile.id
-            ? { ...f, status: 'error' as const, error: errMsg }
-            : f
-        ))
-        toast.error(`Upload failed: ${errMsg}`)
+      } catch {
+        markFailed(uploadFile.id, 'Network error during upload')
       }
     })
 
-    xhr.addEventListener('error', () => {
-      setUploadedFiles(prev => prev.map(f =>
-        f.id === uploadFile.id
-          ? { ...f, status: 'error' as const, error: 'Network error during upload' }
-          : f
-      ))
-    })
+    xhr.addEventListener('error', () => markFailed(uploadFile.id, 'Network error during upload'))
 
-    xhr.open('POST', `/api/cases/${params.id}/images`)
+    xhr.open('POST', signed.uploadUrl)
     xhr.send(form)
   }
 
