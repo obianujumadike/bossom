@@ -1,4 +1,4 @@
-# Blossom
+# Bossom
 
 A clinical radiology platform for managing mammogram cases, running AI-assisted analysis, and supporting radiologist workflows.
 
