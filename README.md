@@ -19,7 +19,7 @@ A clinical radiology platform for managing mammogram cases, running AI-assisted 
 
 ## Authorship
 
-Blossom (this application — UI, API routes, database schema, clinical workflow) is an **original work** by the Blossom team.
+Bossom (this application — UI, API routes, database schema, clinical workflow) is an **original work** by the Bossom team.
 
 The AI model powering the mammogram analysis is **not** authored by the Blossom team. See the [mammogram-inference-service README](mammogram-inference-service/README.md) for full attribution.
 
@@ -125,16 +125,16 @@ The mammogram analysis feature is powered by **SensiNet**, a dual-stream deep le
 > **Architecture:** Xception + EfficientNet-B3 with CBAM attention fusion  
 > **Training data:** CBIS-DDSM (Curated Breast Imaging Subset of DDSM)
 
-The Blossom team did **not** design the SensiNet architecture or produce its weights. Our contribution is the FastAPI wrapper, Bayesian MC-Dropout inference pipeline (10 stochastic passes), SSRF protection, and integration with the Blossom clinical workflow. We use the model under its Apache 2.0 license, which requires this attribution.
+The Bossom team did **not** design the SensiNet architecture or produce its weights. Our contribution is the FastAPI wrapper, Bayesian MC-Dropout inference pipeline (10 stochastic passes), SSRF protection, and integration with the Bossom clinical workflow. We use the model under its Apache 2.0 license, which requires this attribution.
 
 ---
 
 ## Important notice
 
-Blossom is a **research and development prototype**. It has not been validated for clinical use. AI-generated BI-RADS scores are estimates only and must not be used to diagnose, treat, or manage patients without appropriate radiologist oversight and regulatory approval.
+Bossom is a **research and development prototype**. It has not been validated for clinical use. AI-generated BI-RADS scores are estimates only and must not be used to diagnose, treat, or manage patients without appropriate radiologist oversight and regulatory approval.
 
 ---
 
 ## License
 
-The Blossom application code is original work by the Blossom team. The SensiNet model is used under [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) — copyright belongs to its original authors.
+The Bossom application code is original work by the Bossom team. The SensiNet model is used under [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) — copyright belongs to its original authors.
