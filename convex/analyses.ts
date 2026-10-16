@@ -4,12 +4,14 @@ import { internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
 import { requireOwnedCase, requireUserId } from './lib/session'
 import { imageDeliveryUrl } from './lib/imageUrl'
+import { approxBiradsFromMalignancy } from './lib/birads'
 
 // The whole analysis runs server-side in one action. Results are written by
 // internal mutations only, so no client can submit or alter a BI-RADS score.
 //
 // Configuration (Convex env):
-//   GCLOUD_MODEL_ENDPOINT  inference service base URL (POST {endpoint}/analyze)
+//   GCLOUD_MODEL_ENDPOINT  inference service base URL; the image is POSTed as
+//                          multipart `file` to {endpoint}/api/analyze (#25)
 //   GCLOUD_API_KEY         optional, sent as X-API-Key
 //   ANALYSIS_MOCK=true     dev only: random results when no endpoint is set
 // With neither set, analysis fails closed instead of inventing a result.
@@ -112,27 +114,46 @@ export const fail = internalMutation({
   },
 })
 
+const EXTENSIONS: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/tiff': 'tiff' }
+
+/**
+ * Inference contract from #25: the image itself is uploaded as multipart
+ * `file` to {endpoint}/api/analyze, and the service answers with
+ * `probability_malignant`, `decision_confidence` and `prediction`. BI-RADS
+ * is derived from the probability (lib/birads.ts).
+ *
+ * Unlike #25, a response without a usable probability fails the analysis:
+ * defaulting it to 0 would report BI-RADS 2 (benign) for a malformed answer.
+ */
 async function callModel(endpoint: string, imageUrl: string): Promise<Result> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const imageResp = await fetch(imageUrl, { signal: AbortSignal.timeout(MODEL_TIMEOUT_MS) })
+  if (!imageResp.ok) throw new Error(`Failed to fetch image: ${imageResp.status}`)
+  const image = await imageResp.blob()
+
+  const form = new FormData()
+  form.append('file', image, `mammogram.${EXTENSIONS[image.type] ?? 'jpg'}`)
+
+  const headers: Record<string, string> = {}
   if (process.env.GCLOUD_API_KEY) headers['X-API-Key'] = process.env.GCLOUD_API_KEY
 
-  const resp = await fetch(`${endpoint.replace(/\/$/, '')}/analyze`, {
+  const resp = await fetch(`${endpoint.replace(/\/$/, '')}/api/analyze`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ image_url: imageUrl }),
+    body: form,
     signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
   })
   if (!resp.ok) throw new Error(`AI service returned ${resp.status}`)
 
   const raw = await resp.json()
-  if (typeof raw.birads !== 'number' || typeof raw.confidence !== 'number') {
-    throw new Error('AI service returned an unexpected payload')
+  const probability = raw.probability_malignant
+  if (typeof probability !== 'number' || !Number.isFinite(probability) || probability < 0 || probability > 1) {
+    throw new Error('AI service response has no valid probability_malignant')
   }
   return {
-    birads_category: raw.birads,
-    confidence_score: raw.confidence,
-    malignancy_probability: typeof raw.malignancy_probability === 'number' ? raw.malignancy_probability : 0,
-    overall_assessment: String(raw.findings_text ?? ''),
+    birads_category: approxBiradsFromMalignancy(probability),
+    confidence_score: typeof raw.decision_confidence === 'number' ? raw.decision_confidence : 0,
+    malignancy_probability: probability,
+    overall_assessment: String(raw.prediction ?? ''),
     regions: [],
   }
 }

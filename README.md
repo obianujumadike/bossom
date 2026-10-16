@@ -103,7 +103,7 @@ npx convex env set AUTH_EMAIL_FROM "Bossom <no-reply@yourdomain.com>"
 npx convex env set CLOUDINARY_CLOUD_NAME ...
 npx convex env set CLOUDINARY_API_KEY ...
 npx convex env set CLOUDINARY_API_SECRET ...
-npx convex env set GCLOUD_MODEL_ENDPOINT https://tampee-mammogram-analyzer.hf.space
+npx convex env set GCLOUD_MODEL_ENDPOINT <inference-service-url>   # see "AI inference service"
 ```
 
 **Auth keys.** Convex Auth signs sessions with an RS256 key pair. `npx @convex-dev/auth` generates and sets `JWT_PRIVATE_KEY` and `JWKS` for you; run it once per deployment (and with `--prod` for production).
@@ -128,9 +128,11 @@ npm run test:e2e    # sign-up, sign-in, reset and case isolation against the dev
 
 ### AI inference service
 
-The inference service is **hosted on Hugging Face Spaces** at `https://tampee-mammogram-analyzer.hf.space`. No local setup is required if you use the hosted endpoint.
+Since #25 the app expects the service to accept the image as multipart `file` at `POST {GCLOUD_MODEL_ENDPOINT}/api/analyze` and to answer with `probability_malignant`, `decision_confidence` and `prediction`; the BI-RADS category is derived from the probability (`convex/lib/birads.ts`). A response without a valid `probability_malignant` fails the analysis rather than defaulting to benign.
 
-To run it locally instead:
+The SensiNet service in `mammogram-inference-service/` and its Hugging Face Space (`https://tampee-mammogram-analyzer.hf.space`) still expose the older contract (`POST /analyze` with an `image_url`, returning `birads`), so they don't work as `GCLOUD_MODEL_ENDPOINT` until they're updated.
+
+To run the SensiNet service locally:
 
 ```bash
 cd mammogram-inference-service

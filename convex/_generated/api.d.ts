@@ -14,6 +14,7 @@ import type * as auth from "../auth.js";
 import type * as cases from "../cases.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
+import type * as lib_birads from "../lib/birads.js";
 import type * as lib_cloudinary from "../lib/cloudinary.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_imageUrl from "../lib/imageUrl.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   cases: typeof cases;
   http: typeof http;
   images: typeof images;
+  "lib/birads": typeof lib_birads;
   "lib/cloudinary": typeof lib_cloudinary;
   "lib/env": typeof lib_env;
   "lib/imageUrl": typeof lib_imageUrl;
