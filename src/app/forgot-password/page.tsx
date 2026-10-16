@@ -1,140 +1,213 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { FaArrowLeft, FaEnvelope } from 'react-icons/fa'
+import { FaArrowLeft, FaEye, FaEyeSlash } from 'react-icons/fa'
+import { useAuthActions } from '@convex-dev/auth/react'
 import { BossomLogo } from '@/components/ui/BossomLogo'
 import { componentStyles } from '@/lib/design-system'
-import { createClient } from '@/lib/supabase/client'
+import { authErrorMessage, emailError, normalizeEmail, passwordError } from '@/convex/lib/rules'
+
+// Step 1 emails a 6-digit code; step 2 takes the code and the new password on
+// this same screen. The response is identical whether or not the email has an
+// account, so this page can't be used to discover who is registered.
 
 export default function ForgotPasswordPage() {
+  const router = useRouter()
+  const { signIn } = useAuthActions()
+  const [step, setStep] = useState<'email' | 'reset'>('email')
+  const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [sent, setSent] = useState(false)
-  const [email, setEmail] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const requestCode = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const trimmed = email.trim()
-    if (!trimmed) return
+    setError('')
+    const normalized = normalizeEmail(email)
+    const problem = emailError(normalized)
+    if (problem) return setError(problem)
 
     setLoading(true)
-    setError('')
-
     try {
-      const supabase = createClient()
-      const { error: sbError } = await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
-      })
-      if (sbError) {
-        if (sbError.message.includes('rate limit') || (sbError as any).code === 'over_email_send_rate_limit') {
-          setError('A reset link was already sent to this address. Please check your email or wait a few minutes before trying again.')
-        } else {
-          setError(sbError.message)
-        }
-      } else {
-        setSent(true)
-      }
+      await signIn('password', { flow: 'reset', email: normalized })
+      setEmail(normalized)
+      setStep('reset')
     } catch (err) {
-      setError('Something went wrong. Please try again.')
-    } finally {
-      setLoading(false)
+      setError(authErrorMessage(err))
     }
+    setLoading(false)
   }
+
+  const resetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setError('')
+    const form = new FormData(e.currentTarget)
+    const code = ((form.get('code') as string | null) ?? '').trim()
+    const newPassword = (form.get('password') as string | null) ?? ''
+
+    if (!/^\d{6}$/.test(code)) return setError('Enter the 6-digit code from the email.')
+    const problem = passwordError(newPassword) || (newPassword !== form.get('confirm') && 'Passwords do not match')
+    if (problem) return setError(problem)
+
+    setLoading(true)
+    try {
+      const { signingIn } = await signIn('password', { flow: 'reset-verification', email, code, newPassword })
+      if (signingIn) return router.replace('/dashboard')
+      setError('That code is invalid or has expired. Request a new one.')
+    } catch (err) {
+      setError(authErrorMessage(err))
+    }
+    setLoading(false)
+  }
+
+  const inputClass = `${componentStyles.input.base} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-bossom-pink-50 to-bossom-pink-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-
-          {/* Logo */}
           <div className="flex justify-center mb-6">
             <Link href="/" className="hover:opacity-80 transition-opacity">
               <BossomLogo size="lg" />
             </Link>
           </div>
 
-          {sent ? (
-            /* Success state */
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FaEnvelope className="w-7 h-7 text-green-600" />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h1>
-              <p className="text-gray-600 mb-2">
-                We sent a reset link to
-              </p>
-              <p className="font-medium text-gray-900 mb-6">{email}</p>
-              <p className="text-sm text-gray-500 mb-8">
-                Click the link in the email to set a new password. The link expires in 1 hour.
-              </p>
-              <Link
-                href="/login"
-                className={`${componentStyles.button.primary} w-full flex items-center justify-center gap-2`}
-              >
-                Back to Sign In
-              </Link>
-              <button
-                onClick={() => { setSent(false); setError('') }}
-                className="mt-4 text-sm text-bossom-pink-600 hover:text-bossom-pink-500"
-              >
-                Didn&apos;t receive it? Try again
-              </button>
-            </div>
-          ) : (
-            /* Email form */
-            <>
-              <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Forgot password?</h1>
-                <p className="text-gray-600">
-                  Enter your email and we&apos;ll send you a link to reset your password.
-                </p>
-              </div>
-
-              {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-red-600 text-sm">{error}</p>
-                </div>
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              {step === 'email' ? 'Forgot password?' : 'Set a new password'}
+            </h1>
+            <p className="text-gray-600">
+              {step === 'email' ? (
+                "Enter your email and we'll send you a 6-digit code to reset your password."
+              ) : (
+                <>
+                  If an account exists for <span className="font-medium text-gray-900 break-all">{email}</span>, we&apos;ve
+                  sent it a code. It expires in 15 minutes.
+                </>
               )}
+            </p>
+          </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address
-                  </label>
+          {error && (
+            <div role="alert" className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
+          )}
+
+          {step === 'email' ? (
+            <form onSubmit={requestCode} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  autoComplete="email"
+                  required
+                  disabled={loading}
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className={inputClass}
+                  placeholder="Enter your email"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                aria-busy={loading}
+                className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {loading ? 'Sending...' : 'Send Reset Code'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={resetPassword} className="space-y-4">
+              <div>
+                <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
+                  Reset code
+                </label>
+                <input
+                  id="code"
+                  name="code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  required
+                  disabled={loading}
+                  className={`${inputClass} text-center text-xl tracking-[0.5em] font-semibold`}
+                  placeholder="000000"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  New Password
+                </label>
+                <div className="relative">
                   <input
-                    type="email"
-                    id="email"
-                    name="email"
+                    type={showPassword ? 'text' : 'password'}
+                    id="password"
+                    name="password"
+                    autoComplete="new-password"
+                    minLength={8}
                     required
                     disabled={loading}
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className={`${componentStyles.input.base} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    placeholder="Enter your email"
+                    className={`${inputClass} pr-10`}
+                    placeholder="At least 8 characters"
                   />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setShowPassword(v => !v)}
+                  >
+                    {showPassword ? <FaEyeSlash className="h-4 w-4 text-gray-400" /> : <FaEye className="h-4 w-4 text-gray-400" />}
+                  </button>
                 </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {loading ? 'Sending...' : 'Send Reset Link'}
-                </button>
-              </form>
-
-              <div className="mt-6 text-center">
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
-                >
-                  <FaArrowLeft className="w-3 h-3" />
-                  Back to Sign In
-                </Link>
               </div>
-            </>
+              <div>
+                <label htmlFor="confirm" className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirm New Password
+                </label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  id="confirm"
+                  name="confirm"
+                  autoComplete="new-password"
+                  required
+                  disabled={loading}
+                  className={inputClass}
+                  placeholder="Repeat your new password"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                aria-busy={loading}
+                className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {loading ? 'Updating…' : 'Update Password'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setStep('email'); setError('') }}
+                className="w-full text-sm text-bossom-pink-600 hover:text-bossom-pink-500"
+              >
+                Didn&apos;t receive it? Send another code
+              </button>
+            </form>
           )}
+
+          <div className="mt-6 text-center">
+            <Link href="/login" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
+              <FaArrowLeft className="w-3 h-3" />
+              Back to Sign In
+            </Link>
+          </div>
         </div>
       </div>
     </div>

@@ -7,13 +7,13 @@ A clinical radiology platform for managing mammogram cases, running AI-assisted 
 ## What it does
 
 - **Case management** — create, track, and manage patient mammogram cases with full clinical metadata (study type, breast density, referring physician, priority, clinical indication)
-- **Image upload** — securely upload mammogram images to Supabase Storage
+- **Image upload** — mammograms go straight from the browser to Cloudinary as private (`authenticated`) assets; only signed URLs leave the server
 - **AI analysis** — submit images for automated BI-RADS classification via the SensiNet inference service, with Bayesian uncertainty estimation
 - **Results display** — view BI-RADS category, malignancy probability, confidence scores, and regions of interest; re-run analysis at any time
 - **Mark as Complete** — mark cases as completed after review; a BI-RADS-aware next-steps modal surfaces clinical guidance (routine follow-up, short-interval follow-up, biopsy, or urgent referral)
 - **Dashboard** — at-a-glance stats across all cases (total, in-progress, completed, urgent); clickable cards filter the case list
-- **Radiologist accounts** — email/password auth, profiles, onboarding flow, password reset
-- **Audit trail** — all analyses are persisted with timestamps and model version
+- **Radiologist accounts** — email/password auth with a 6-digit email code to confirm sign-up and to reset passwords; profiles
+- **Audit trail** — every analysis is persisted with timestamps, model version, who requested it and whether the result came from the model or the dev mock
 
 ---
 
@@ -21,7 +21,7 @@ A clinical radiology platform for managing mammogram cases, running AI-assisted 
 
 Bossom (this application — UI, API routes, database schema, clinical workflow) is an **original work** by the Bossom team.
 
-The AI model powering the mammogram analysis is **not** authored by the Blossom team. See the [mammogram-inference-service README](mammogram-inference-service/README.md) for full attribution.
+The AI model powering the mammogram analysis is **not** authored by the Bossom team. See the [mammogram-inference-service README](mammogram-inference-service/README.md) for full attribution.
 
 ---
 
@@ -30,7 +30,9 @@ The AI model powering the mammogram analysis is **not** authored by the Blossom 
 **Frontend / Backend**
 - [Next.js 15](https://nextjs.org/) (App Router, React Server Components)
 - [Tailwind CSS](https://tailwindcss.com/)
-- [Supabase](https://supabase.com/) — Auth, PostgreSQL, Storage
+- [Convex](https://convex.dev/) — database, server functions and auth ([Convex Auth](https://labs.convex.dev/auth))
+- [Cloudinary](https://cloudinary.com/) — image storage and delivery
+- [Resend](https://resend.com/) — sign-up and password-reset emails
 
 **AI inference**
 - [mammogram-inference-service](mammogram-inference-service/) — FastAPI microservice deployed on [Hugging Face Spaces](https://huggingface.co/spaces/tampee/mammogram-analyzer)
@@ -56,8 +58,13 @@ blossom/
 │   │   ├── onboarding/       # First-run onboarding flow
 │   │   └── auth/             # Login, signup, callback, password reset
 │   └── lib/
-│       ├── supabase/         # Supabase client (browser, server, middleware)
+│       ├── convex/           # Convex client provider, /api/auth proxy, route helper
 │       └── auth/             # Auth context, guards, permissions
+├── convex/                   # Schema and server functions (cases, images, analyses, auth)
+│   └── lib/                  # Password provider, email codes, Cloudinary signing, pure rules (+ tests)
+├── scripts/
+│   ├── e2e-convex.ts         # End-to-end checks against a dev deployment
+│   └── migrate-from-supabase.ts
 └── mammogram-inference-service/  # Python FastAPI AI backend
 ```
 
@@ -67,8 +74,8 @@ blossom/
 
 ### Prerequisites
 
-- Node.js 20+
-- A [Supabase](https://supabase.com/) project
+- Node.js 24 (pinned in `.nvmrc`; run `nvm use`)
+- A [Convex](https://convex.dev/) account (free), a [Cloudinary](https://cloudinary.com/) account (free) and a [Resend](https://resend.com/) API key
 - Python 3.10+ (only needed to run the inference service locally)
 
 ### 1. Install dependencies
@@ -77,31 +84,55 @@ blossom/
 npm install
 ```
 
-### 2. Configure environment
+### 2. Create the Convex deployment
 
-Create `.env.local` in the project root:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-
-# AI inference endpoint — use the hosted HF Space or run locally
-GCLOUD_MODEL_ENDPOINT=https://tampee-mammogram-analyzer.hf.space
-MODEL_API_KEY=your-api-key
+```bash
+npx convex dev
 ```
 
-### 3. Run the web app
+The first run creates (or links) the project and writes `CONVEX_DEPLOYMENT` and `NEXT_PUBLIC_CONVEX_URL` to `.env.local`. Leave it running: it pushes `convex/` on every save.
+
+### 3. Configure the deployment
+
+Server secrets live on the Convex deployment, not in `.env.local` (see `.env.local.example` for the full list):
+
+```bash
+npx convex env set SITE_URL http://localhost:3000
+npx convex env set AUTH_RESEND_KEY re_...
+npx convex env set AUTH_EMAIL_FROM "Bossom <no-reply@yourdomain.com>"
+npx convex env set CLOUDINARY_CLOUD_NAME ...
+npx convex env set CLOUDINARY_API_KEY ...
+npx convex env set CLOUDINARY_API_SECRET ...
+npx convex env set GCLOUD_MODEL_ENDPOINT <inference-service-url>   # see "AI inference service"
+```
+
+**Auth keys.** Convex Auth signs sessions with an RS256 key pair. `npx @convex-dev/auth` generates and sets `JWT_PRIVATE_KEY` and `JWKS` for you; run it once per deployment (and with `--prod` for production).
+
+**Dev shortcuts** (never on production): `DEV_LOG_AUTH_CODES=true` prints sign-up/reset codes to `npx convex logs` instead of emailing them, and `ANALYSIS_MOCK=true` returns random BI-RADS results when no model endpoint is set. Without an endpoint or the mock flag, analysis fails rather than inventing a result.
+
+### 4. Run the web app
 
 ```bash
 npm run dev
 ```
 
-### 4. AI inference service
+### Checks
 
-The inference service is **hosted on Hugging Face Spaces** at `https://tampee-mammogram-analyzer.hf.space`. No local setup is required if you use the hosted endpoint.
+```bash
+npm run typecheck   # Next app and Convex functions
+npm test            # unit tests for the auth rules and Cloudinary signing
+npm run test:e2e    # sign-up, sign-in, reset and case isolation against the dev deployment
+```
 
-To run it locally instead:
+`test:e2e` needs `DEV_LOG_AUTH_CODES=true` on the dev deployment; it creates throwaway accounts with unique emails on every run.
+
+### AI inference service
+
+Since #25 the app expects the service to accept the image as multipart `file` at `POST {GCLOUD_MODEL_ENDPOINT}/api/analyze` and to answer with `probability_malignant`, `decision_confidence` and `prediction`; the BI-RADS category is derived from the probability (`convex/lib/birads.ts`). A response without a valid `probability_malignant` fails the analysis rather than defaulting to benign.
+
+The SensiNet service in `mammogram-inference-service/` and its Hugging Face Space (`https://tampee-mammogram-analyzer.hf.space`) still expose the older contract (`POST /analyze` with an `image_url`, returning `birads`), so they don't work as `GCLOUD_MODEL_ENDPOINT` until they're updated.
+
+To run the SensiNet service locally:
 
 ```bash
 cd mammogram-inference-service
@@ -110,9 +141,28 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Then set `GCLOUD_MODEL_ENDPOINT=http://localhost:8000` in `.env.local`.
+Analysis runs inside Convex's cloud, which can't reach `localhost`. To use a local service, expose it with a tunnel (e.g. `cloudflared tunnel --url http://localhost:8000`) and set `GCLOUD_MODEL_ENDPOINT` on the dev deployment to the tunnel URL.
 
 The inference service runs in **mock mode** if model weights are absent — useful for UI development without a GPU.
+
+---
+
+## Migrating from Supabase
+
+`scripts/migrate-from-supabase.ts` copies users, patients, clinical history, cases, analyses and regions into Convex, and every mammogram from Supabase Storage into Cloudinary.
+
+```bash
+npm run migrate:supabase -- --dry-run   # read only: counts + a local backup
+npm run migrate:supabase                # into the dev deployment
+npm run migrate:supabase -- --prod      # into production
+```
+
+It needs `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and the three `CLOUDINARY_*` values in `.env.local`. Add `SUPABASE_ACCESS_TOKEN` (a [personal access token](https://supabase.com/dashboard/account/tokens)) so users keep their existing passwords; without it they sign in once via **Forgot password**.
+
+- **Safe to re-run.** Every row keeps its Supabase id as `legacy_id`, so a second run skips what is already there, copies files it hasn't copied yet, and attaches password hashes if the token was added later.
+- **Backup first.** Before writing anything it saves the full export, including `audit_logs` and `system_settings`, which the app no longer uses, to `migration-data/`. That folder is git-ignored because it contains patient data; delete it once the migration is verified.
+- **Interrupted analyses.** Runs left `pending`/`processing` in Supabase import as `failed` with a reason.
+- **Old links.** Case URLs change from Supabase UUIDs to Convex ids; an old `/cases/<uuid>` link shows "not found".
 
 ---
 

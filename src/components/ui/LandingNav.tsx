@@ -13,7 +13,7 @@ export function LandingNav() {
       <div className="flex justify-between items-center p-6 lg:px-8">
         <Link href="/" className="flex items-center space-x-3">
           <BossomLogo size="md" />
-          <span className="text-2xl font-bold text-gray-900">Blossom</span>
+          <span className="text-2xl font-bold text-gray-900">Bossom</span>
         </Link>
 
         {/* Desktop links */}

@@ -11,7 +11,7 @@ export default function PrivacyPolicy() {
         <div className="max-w-4xl mx-auto px-6 py-4">
           <Link href="/" className="inline-flex items-center hover:opacity-80 transition-opacity">
             <BossomLogo className="h-8" />
-            <span className="ml-3 text-xl font-semibold text-gray-900">Blossom</span>
+            <span className="ml-3 text-xl font-semibold text-gray-900">Bossom</span>
           </Link>
         </div>
       </header>
@@ -27,7 +27,7 @@ export default function PrivacyPolicy() {
             <div className="bg-red-50 border border-red-200 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-red-900 mb-3">Important Medical Disclaimer</h2>
               <div className="space-y-3 text-red-800">
-                <p><strong>Blossom is NOT a medical device and does not provide medical advice, diagnosis, or treatment.</strong></p>
+                <p><strong>Bossom is NOT a medical device and does not provide medical advice, diagnosis, or treatment.</strong></p>
                 <p>We are not medical professionals. This platform is intended for informational and educational purposes only to assist healthcare professionals and individuals in understanding mammography analysis.</p>
                 <p><strong>This service does NOT substitute for professional medical consultation, examination, diagnosis, or treatment. Always consult with a qualified healthcare provider for medical advice and never disregard professional medical advice or delay seeking it because of information obtained from this platform.</strong></p>
                 <p>If you have a medical emergency, immediately contact your doctor or emergency services.</p>

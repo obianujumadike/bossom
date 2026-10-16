@@ -1,50 +1,70 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai'
 import Link from 'next/link'
+import { useAuthActions } from '@convex-dev/auth/react'
 import { BossomLogo } from '@/components/ui/BossomLogo'
 import { Select } from '@/components/ui/Select'
-import { signUpWithEmail } from '@/app/auth/actions'
+import { VerifyCodeForm } from '@/components/auth/VerifyCodeForm'
+import { authErrorMessage, emailError, normalizeEmail, passwordError } from '@/convex/lib/rules'
 
 export default function SignupPage() {
+  const router = useRouter()
+  const { signIn } = useAuthActions()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [specializationValue, setSpecializationValue] = useState('Radiology')
+  // Set once the account is created; the emailed code finishes sign-up.
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
 
   const handleEmailSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setIsLoading(true)
     setError('')
-    setSuccess('')
-    
-    const formData = new FormData(e.currentTarget)
-    const password = formData.get('password') as string
-    const confirmPassword = formData.get('confirmPassword') as string
-    
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      setIsLoading(false)
-      return
-    }
 
+    const formData = new FormData(e.currentTarget)
+    const field = (name: string) => ((formData.get(name) as string | null) ?? '').trim()
+    const email = normalizeEmail(formData.get('email'))
+    const password = (formData.get('password') as string | null) ?? ''
+
+    const problem =
+      (!field('fullName') && 'Full name is required') ||
+      emailError(email) ||
+      (!field('medicalLicense') && 'Medical license number is required') ||
+      passwordError(password) ||
+      (password !== formData.get('confirmPassword') && 'Passwords do not match')
+    if (problem) return setError(problem)
+
+    setIsLoading(true)
     try {
-      const result = await signUpWithEmail(formData)
-      
-      if (result?.error) {
-        setError(result.error)
-        setIsLoading(false)
-      } else if (result?.success) {
-        setSuccess(result.message || 'Account created successfully!')
-        setIsLoading(false)
-      }
-    } catch (error: any) {
-      setError(error.message || 'Failed to sign up')
-      setIsLoading(false)
+      await signIn('password', {
+        flow: 'signUp',
+        email,
+        password,
+        fullName: field('fullName'),
+        medicalLicense: field('medicalLicense'),
+        specialization: field('specialization') || 'Radiology',
+        hospitalAffiliation: field('hospitalAffiliation'),
+      })
+      setPendingEmail(email)
+    } catch (err) {
+      setError(authErrorMessage(err))
     }
+    setIsLoading(false)
+  }
+
+  if (pendingEmail) {
+    return (
+      <VerifyCodeForm
+        email={pendingEmail}
+        intro="To finish creating your account, enter the 6-digit code we sent to"
+        onVerified={() => router.replace('/dashboard')}
+        onBack={() => setPendingEmail(null)}
+      />
+    )
   }
 
   return (
@@ -64,17 +84,18 @@ export default function SignupPage() {
         {/* Signup Form */}
         <div className="bg-white rounded-3xl shadow-2xl p-10 border border-gray-100 max-h-[90vh] overflow-y-auto">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div role="alert" className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-600 text-sm">{error}</p>
+              {error.includes('already exists') && (
+                <p className="text-sm mt-2">
+                  <Link href="/login" className="font-medium text-bossom-600 hover:text-bossom-700">Sign in</Link>
+                  {' · '}
+                  <Link href="/forgot-password" className="font-medium text-bossom-600 hover:text-bossom-700">Reset password</Link>
+                </p>
+              )}
             </div>
           )}
-          
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-600 text-sm">{success}</p>
-            </div>
-          )}
-          
+
           {/* Email Signup Form */}
           <form onSubmit={handleEmailSignup} className="space-y-5">
             <div>
@@ -100,6 +121,7 @@ export default function SignupPage() {
                 id="email"
                 name="email"
                 type="email"
+                autoComplete="email"
                 required
                 disabled={isLoading}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-bossom-500 focus:border-transparent outline-none transition-all duration-200 bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
@@ -164,6 +186,8 @@ export default function SignupPage() {
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  minLength={8}
                   required
                   disabled={isLoading}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-bossom-500 focus:border-transparent outline-none transition-all duration-200 pr-12 bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
@@ -172,6 +196,7 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   disabled={isLoading}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
@@ -189,6 +214,7 @@ export default function SignupPage() {
                   id="confirmPassword"
                   name="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   required
                   disabled={isLoading}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-bossom-500 focus:border-transparent outline-none transition-all duration-200 pr-12 bg-gray-50 focus:bg-white text-gray-900 placeholder-gray-500"
@@ -197,6 +223,7 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                   disabled={isLoading}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >

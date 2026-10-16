@@ -1,82 +1,31 @@
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { fetchMutation, fetchQuery } from 'convex/nextjs'
+import { api as convex } from '@/convex/_generated/api'
 import { api, log } from '@/lib/api/response'
+import { withSession } from '@/lib/convex/server'
 
-// GET /api/profile — get current user's profile
+// GET /api/profile — current user's profile
 export async function GET() {
-  try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError) return api.serverError('Auth service unavailable', authError)
-    if (!user) return api.unauthorized()
-
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    if (error && error.code !== 'PGRST116') {
-      return api.serverError('Failed to fetch profile', error, { userId: user.id, dbCode: error.code })
-    }
-
-    if (!data) {
-      // Return basic profile from auth metadata if DB profile doesn't exist yet
-      log.warn('Profile not found in DB, falling back to auth metadata', { userId: user.id })
-      return api.ok({
-        id: user.id,
-        email: user.email,
-        full_name: user.user_metadata?.full_name || '',
-        medical_license_number: user.user_metadata?.medical_license_number || '',
-        specialization: user.user_metadata?.specialization || 'Radiology',
-        hospital_affiliation: user.user_metadata?.hospital_affiliation || '',
-        role: user.user_metadata?.role || 'radiologist',
-        is_verified: false,
-        created_at: user.created_at,
-      })
-    }
-
-    return api.ok(data)
-  } catch (err) {
-    return api.serverError('Unexpected error in GET /api/profile', err)
-  }
+  return withSession('Failed to fetch profile', async token => {
+    const profile = await fetchQuery(convex.users.me, {}, { token })
+    return profile ? api.ok(profile) : api.unauthorized()
+  })
 }
+
+const EDITABLE = ['full_name', 'medical_license_number', 'specialization', 'hospital_affiliation', 'phone_number'] as const
 
 // PUT /api/profile — update current user's profile
 export async function PUT(request: Request) {
-  try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError) return api.serverError('Auth service unavailable', authError)
-    if (!user) return api.unauthorized()
+  const body = await request.json().catch(() => null)
+  if (!body) return api.badRequest('Invalid request body')
 
-    const body = await request.json().catch(() => null)
-    if (!body) return api.badRequest('Invalid request body')
-
-    const allowedFields = ['full_name', 'medical_license_number', 'specialization', 'hospital_affiliation', 'phone_number']
-    const updates: Record<string, unknown> = {}
-    for (const field of allowedFields) {
-      if (body[field] !== undefined) updates[field] = body[field]
-    }
-
-    if (Object.keys(updates).length === 0) {
-      return api.badRequest('No valid fields to update')
-    }
-
-    log.info('PUT /api/profile', { userId: user.id, fields: Object.keys(updates) })
-
-    const admin = createAdminClient()
-    const { data, error } = await admin
-      .from('users')
-      .upsert({ id: user.id, email: user.email, ...updates }, { onConflict: 'id' })
-      .select()
-      .single()
-
-    if (error) {
-      return api.serverError('Failed to update profile', error, { userId: user.id, dbCode: error.code, dbDetail: error.details })
-    }
-
-    return api.ok(data)
-  } catch (err) {
-    return api.serverError('Unexpected error in PUT /api/profile', err)
+  const updates: Record<string, unknown> = {}
+  for (const field of EDITABLE) {
+    if (body[field] !== undefined) updates[field] = body[field]
   }
+  if (Object.keys(updates).length === 0) return api.badRequest('No valid fields to update')
+
+  return withSession('Failed to update profile', async token => {
+    log.info('PUT /api/profile', { fields: Object.keys(updates) })
+    return api.ok(await fetchMutation(convex.users.updateProfile, updates, { token }))
+  })
 }
