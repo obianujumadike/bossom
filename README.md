@@ -74,7 +74,7 @@ blossom/
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 24 (pinned in `.nvmrc`; run `nvm use`)
 - A [Convex](https://convex.dev/) account (free), a [Cloudinary](https://cloudinary.com/) account (free) and a [Resend](https://resend.com/) API key
 - Python 3.10+ (only needed to run the inference service locally)
 
