@@ -27,7 +27,7 @@ export default function TermsAndConditions() {
             <div className="bg-red-50 border border-red-200 rounded-lg p-6">
               <h2 className="text-xl font-semibold text-red-900 mb-3">CRITICAL MEDICAL DISCLAIMER</h2>
               <div className="space-y-3 text-red-800">
-                <p><strong>BLOSSOM IS NOT A MEDICAL DEVICE AND DOES NOT PROVIDE MEDICAL ADVICE, DIAGNOSIS, OR TREATMENT.</strong></p>
+                <p><strong>BOSSOM IS NOT A MEDICAL DEVICE AND DOES NOT PROVIDE MEDICAL ADVICE, DIAGNOSIS, OR TREATMENT.</strong></p>
                 <p><strong>WE ARE NOT MEDICAL PROFESSIONALS.</strong> This platform is intended solely for informational and educational purposes to assist healthcare professionals and individuals in understanding mammography analysis.</p>
                 <p><strong>THIS SERVICE DOES NOT SUBSTITUTE FOR PROFESSIONAL MEDICAL CONSULTATION, EXAMINATION, DIAGNOSIS, OR TREATMENT. YOU MUST ALWAYS CONSULT WITH A QUALIFIED HEALTHCARE PROVIDER FOR MEDICAL ADVICE.</strong></p>
                 <p><strong>NEVER DISREGARD PROFESSIONAL MEDICAL ADVICE OR DELAY SEEKING MEDICAL TREATMENT BECAUSE OF INFORMATION OBTAINED FROM THIS PLATFORM.</strong></p>
