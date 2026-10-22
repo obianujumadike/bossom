@@ -1,9 +1,16 @@
 import { Email } from '@convex-dev/auth/providers/Email'
 import { ConvexError } from 'convex/values'
+import type { GenericActionCtx, GenericDataModel } from 'convex/server'
+import { internal } from '../_generated/api'
+import { chooseEmailTransport } from './emailTransport'
 
-// One-time codes for sign-up verification and password reset, sent through
-// Resend's HTTP API. Codes replace Supabase's magic links: a link in an email
-// signed people straight in, a code only works on the screen that asked for it.
+// One-time codes for sign-up verification and password reset. Codes replace
+// Supabase's magic links: a link in an email signed people straight in, a
+// code only works on the screen that asked for it.
+//
+// Sent through Gmail (convex/email.ts) when GMAIL_USER and GMAIL_APP_PASSWORD
+// are set, otherwise Resend (AUTH_RESEND_KEY + AUTH_EMAIL_FROM); see
+// lib/emailTransport.ts.
 
 const CODE_TTL_SECONDS = 15 * 60
 
@@ -44,36 +51,47 @@ function renderEmail(purpose: Purpose, code: string): string {
 </div></body></html>`
 }
 
-async function send(purpose: Purpose, to: string, code: string) {
-  // Opt-in for dev deployments only: print the code to the Convex logs
-  // instead of emailing it, so sign-up can be exercised before Resend is set up.
-  if (process.env.DEV_LOG_AUTH_CODES === 'true') {
-    console.log(`[DEV_LOG_AUTH_CODES] ${purpose} code for ${to}: ${code}`)
-    return
-  }
+type Message = { to: string; subject: string; html: string; text: string }
 
-  const apiKey = process.env.AUTH_RESEND_KEY
-  const from = process.env.AUTH_EMAIL_FROM
-  if (!apiKey || !from) {
-    console.error('AUTH_RESEND_KEY and AUTH_EMAIL_FROM must be set on the Convex deployment')
-    throw new ConvexError('EMAIL_SEND_FAILED')
-  }
-
+async function sendViaResend(message: Message) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject: COPY[purpose].subject,
-      html: renderEmail(purpose, code),
-      text: `${COPY[purpose].body}\n\nYour code: ${code}\n\nIt expires in 15 minutes.`,
-    }),
+    headers: { Authorization: `Bearer ${process.env.AUTH_RESEND_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: process.env.AUTH_EMAIL_FROM, ...message, to: [message.to] }),
   })
   if (!res.ok) {
     console.error('Resend rejected the email', res.status, await res.text())
     throw new ConvexError('EMAIL_SEND_FAILED')
   }
+}
+
+async function send(purpose: Purpose, to: string, code: string, ctx: GenericActionCtx<GenericDataModel> | undefined) {
+  const transport = chooseEmailTransport(process.env)
+
+  if (transport === 'log') {
+    console.log(`[DEV_LOG_AUTH_CODES] ${purpose} code for ${to}: ${code}`)
+    return
+  }
+
+  const message: Message = {
+    to,
+    subject: COPY[purpose].subject,
+    html: renderEmail(purpose, code),
+    text: `${COPY[purpose].body}\n\nYour code: ${code}\n\nIt expires in 15 minutes.`,
+  }
+
+  if (transport === 'gmail') {
+    if (!ctx) {
+      console.error('No action context passed to sendVerificationRequest; cannot reach the Gmail action')
+      throw new ConvexError('EMAIL_SEND_FAILED')
+    }
+    await ctx.runAction(internal.email.sendViaGmail, message)
+    return
+  }
+  if (transport === 'resend') return await sendViaResend(message)
+
+  console.error('No email service configured: set GMAIL_USER + GMAIL_APP_PASSWORD (or AUTH_RESEND_KEY + AUTH_EMAIL_FROM) on the Convex deployment')
+  throw new ConvexError('EMAIL_SEND_FAILED')
 }
 
 function otpProvider(id: string, purpose: Purpose) {
@@ -83,8 +101,10 @@ function otpProvider(id: string, purpose: Purpose) {
     async generateVerificationToken() {
       return sixDigitCode()
     },
-    async sendVerificationRequest({ identifier, token }) {
-      await send(purpose, identifier, token)
+    // Convex Auth passes the action ctx as a second argument at runtime; the
+    // Auth.js type it reuses doesn't declare it, hence the optional parameter.
+    async sendVerificationRequest({ identifier, token }, ctx?: GenericActionCtx<GenericDataModel>) {
+      await send(purpose, identifier, token, ctx)
     },
   })
 }

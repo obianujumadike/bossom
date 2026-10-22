@@ -32,7 +32,7 @@ The AI model powering the mammogram analysis is **not** authored by the Bossom t
 - [Tailwind CSS](https://tailwindcss.com/)
 - [Convex](https://convex.dev/) — database, server functions and auth ([Convex Auth](https://labs.convex.dev/auth))
 - [Cloudinary](https://cloudinary.com/) — image storage and delivery
-- [Resend](https://resend.com/) — sign-up and password-reset emails
+- Gmail SMTP (app password) — sign-up and password-reset codes; [Resend](https://resend.com/) is supported as an alternative once there's a domain
 
 **AI inference**
 - [mammogram-inference-service](mammogram-inference-service/) — FastAPI microservice deployed on [Hugging Face Spaces](https://huggingface.co/spaces/tampee/mammogram-analyzer)
@@ -75,7 +75,7 @@ blossom/
 ### Prerequisites
 
 - Node.js 24 (pinned in `.nvmrc`; run `nvm use`)
-- A [Convex](https://convex.dev/) account (free), a [Cloudinary](https://cloudinary.com/) account (free) and a [Resend](https://resend.com/) API key
+- A [Convex](https://convex.dev/) account (free), a [Cloudinary](https://cloudinary.com/) account (free) and a Gmail account with an app password for sending codes
 - Python 3.10+ (only needed to run the inference service locally)
 
 ### 1. Install dependencies
@@ -98,13 +98,15 @@ Server secrets live on the Convex deployment, not in `.env.local` (see `.env.loc
 
 ```bash
 npx convex env set SITE_URL http://localhost:3000
-npx convex env set AUTH_RESEND_KEY re_...
-npx convex env set AUTH_EMAIL_FROM "Bossom <no-reply@yourdomain.com>"
+npx convex env set GMAIL_USER bossom.app@gmail.com
+npx convex env set GMAIL_APP_PASSWORD "abcd efgh ijkl mnop"
 npx convex env set CLOUDINARY_CLOUD_NAME ...
 npx convex env set CLOUDINARY_API_KEY ...
 npx convex env set CLOUDINARY_API_SECRET ...
 npx convex env set GCLOUD_MODEL_ENDPOINT <inference-service-url>   # see "AI inference service"
 ```
+
+**Email.** Codes are sent through Gmail: free, about 500 a day, no domain needed. Use a dedicated Gmail account, turn on 2-Step Verification, and create an app password at https://myaccount.google.com/apppasswords. `EMAIL_FROM_NAME` (default `Bossom`) sets the display name; the address is always `GMAIL_USER`. To move to Resend once you own a domain, remove the two `GMAIL_*` settings and set `AUTH_RESEND_KEY` and `AUTH_EMAIL_FROM` instead; no code change. If neither is set, sign-up fails with "We couldn't send the code email" rather than skipping verification.
 
 **Auth keys.** Convex Auth signs sessions with an RS256 key pair. `npx @convex-dev/auth` generates and sets `JWT_PRIVATE_KEY` and `JWKS` for you; run it once per deployment (and with `--prod` for production).
 
