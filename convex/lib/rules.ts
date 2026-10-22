@@ -49,7 +49,9 @@ export const AUTH_ERRORS = {
   INVALID_PASSWORD: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
   MISSING_PROFILE: 'Full name and medical license number are required.',
   PASSWORD_NOT_SET: 'This account needs a new password. Use "Forgot password" to set one.',
-  EMAIL_SEND_FAILED: "We couldn't send the email. Try again in a minute.",
+  // Sign-up creates the account before emailing the code, so after a failed
+  // send the way back is signing in (which sends a fresh code), not signing up again.
+  EMAIL_SEND_FAILED: "We couldn't send the code email. Wait a minute, then sign in to get a new code.",
 } as const
 
 export type AuthErrorCode = keyof typeof AUTH_ERRORS
