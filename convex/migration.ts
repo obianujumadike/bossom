@@ -62,7 +62,31 @@ export const importUsers = internalMutation({
         .withIndex('providerAndAccountId', q => q.eq('provider', PASSWORD_PROVIDER_ID).eq('providerAccountId', email))
         .unique()
       if (existingAccount) {
-        report.problems.push(`user ${r.id}: ${email} already has a Convex account, not overwritten`)
+        // The person signed up on Convex before the import ran. Adopt that
+        // account (so their Supabase cases attach to it) only when both systems
+        // proved they own the mailbox; otherwise anyone could claim another
+        // radiologist's patient data by registering their address first.
+        // Login and password are never touched.
+        const user = await ctx.db.get(existingAccount.userId)
+        const ownsMailbox = existingAccount.emailVerified === email && !!r.email_confirmed_at
+        if (!user || user.legacy_id || !ownsMailbox) {
+          report.problems.push(
+            `user ${r.id}: ${email} already has a Convex account, not linked (${!user ? 'user missing' : user.legacy_id ? 'already linked to another Supabase user' : 'email not verified on both systems'})`,
+          )
+          continue
+        }
+        const fill = <K extends keyof typeof user>(key: K, value: (typeof user)[K] | undefined) =>
+          user[key] === undefined && value !== undefined ? { [key]: value } : {}
+        await ctx.db.patch(user._id, {
+          legacy_id: r.id,
+          ...fill('full_name', str(r.full_name)),
+          ...fill('name', str(r.full_name)),
+          ...fill('medical_license_number', str(r.medical_license_number)),
+          ...fill('hospital_affiliation', str(r.hospital_affiliation)),
+          ...fill('phone_number', str(r.phone_number)),
+        })
+        report.problems.push(`user ${r.id}: linked to the existing Convex account for ${email}; its login is unchanged`)
+        report.inserted++
         continue
       }
 
