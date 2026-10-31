@@ -48,7 +48,7 @@ export function Select({ options, value, onChange, placeholder, disabled, classN
           px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl
           text-sm text-left transition-all duration-200 outline-none
           focus:ring-2 focus:ring-bossom-500 focus:border-transparent focus:bg-white
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-bossom-400 cursor-pointer'}
+          ${disabled ? 'opacity-70 cursor-not-allowed' : 'hover:border-bossom-400 cursor-pointer'}
           ${open ? 'ring-2 ring-bossom-500 border-transparent bg-white' : ''}
         `}
       >

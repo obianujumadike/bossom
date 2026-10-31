@@ -101,7 +101,7 @@ export function VerifyCodeForm({ email, intro, onVerified, onBack }: VerifyCodeF
               type="submit"
               disabled={loading}
               aria-busy={loading}
-              className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               {loading ? 'Verifying...' : 'Verify and continue'}
             </button>

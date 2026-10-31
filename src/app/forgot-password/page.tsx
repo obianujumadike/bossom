@@ -62,7 +62,7 @@ export default function ForgotPasswordPage() {
     setLoading(false)
   }
 
-  const inputClass = `${componentStyles.input.base} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`
+  const inputClass = `${componentStyles.input.base} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-bossom-pink-50 to-bossom-pink-100 flex items-center justify-center p-4">
@@ -119,7 +119,7 @@ export default function ForgotPasswordPage() {
                 type="submit"
                 disabled={loading}
                 aria-busy={loading}
-                className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {loading ? 'Sending...' : 'Send Reset Code'}
               </button>
@@ -188,7 +188,7 @@ export default function ForgotPasswordPage() {
                 type="submit"
                 disabled={loading}
                 aria-busy={loading}
-                className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {loading ? 'Updating…' : 'Update Password'}
               </button>

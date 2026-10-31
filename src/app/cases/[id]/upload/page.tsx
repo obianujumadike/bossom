@@ -254,7 +254,7 @@ export default function UploadPage() {
                     onClick={handleStartAnalysis}
                     disabled={isProcessing || hasErrors}
                     className={`${componentStyles.button.primary} ${
-                      isProcessing || hasErrors ? 'opacity-50 cursor-not-allowed' : ''
+                      isProcessing || hasErrors ? 'opacity-70 cursor-not-allowed' : ''
                     }`}
                   >
                     {isProcessing ? (

@@ -256,7 +256,7 @@ export default function AnalysisPage() {
                 <button
                   onClick={markAsComplete}
                   disabled={completing}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-60"
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-70"
                 >
                   {completing
                     ? <><FaSpinner className="w-4 h-4 animate-spin" /> Saving...</>
@@ -396,7 +396,7 @@ export default function AnalysisPage() {
                     className={`p-3 border-2 rounded-lg text-left transition-all duration-200 ${
                       selectedImageIdx === idx
                         ? 'border-bossom-pink-300 bg-bossom-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50'
                     }`}
                   >
                     <div className="font-medium text-sm text-gray-900 truncate">

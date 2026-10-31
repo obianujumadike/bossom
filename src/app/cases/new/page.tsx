@@ -289,7 +289,7 @@ export default function NewCasePage() {
                             flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200
                             ${patientData.gender === value 
                               ? 'border-bossom-pink-500 bg-bossom-pink-50 text-bossom-pink-700' 
-                              : 'border-gray-200 hover:border-gray-300'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50'
                             }
                           `}>
                             <Icon className="w-4 h-4" />
@@ -466,7 +466,7 @@ export default function NewCasePage() {
                             px-4 py-2 rounded-lg border-2 transition-all duration-200
                             ${patientData.priorMammograms === value 
                               ? 'border-bossom-pink-500 bg-bossom-pink-50 text-bossom-pink-700' 
-                              : 'border-gray-200 hover:border-gray-300'
+                              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50'
                             }
                           `}>
                             <span className="text-sm font-medium">{label}</span>
@@ -524,7 +524,7 @@ export default function NewCasePage() {
                 onClick={handlePrevious}
                 disabled={currentStep === 1}
                 className={`${componentStyles.button.secondary} ${
-                  currentStep === 1 ? 'opacity-50 cursor-not-allowed' : ''
+                  currentStep === 1 ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
               >
                 Previous
@@ -543,7 +543,7 @@ export default function NewCasePage() {
                     onClick={handleNext}
                     disabled={!isStepValid()}
                     className={`${componentStyles.button.primary} ${
-                      !isStepValid() ? 'opacity-50 cursor-not-allowed' : ''
+                      !isStepValid() ? 'opacity-70 cursor-not-allowed' : ''
                     }`}
                   >
                     Next Step
@@ -553,7 +553,7 @@ export default function NewCasePage() {
                     onClick={handleSubmit}
                     disabled={loading || !isStepValid()}
                     className={`${componentStyles.button.primary} ${
-                      loading || !isStepValid() ? 'opacity-50 cursor-not-allowed' : ''
+                      loading || !isStepValid() ? 'opacity-70 cursor-not-allowed' : ''
                     }`}
                   >
                     {loading ? 'Creating Case...' : 'Create Case'}
