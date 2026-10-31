@@ -126,6 +126,24 @@ export default function ForgotPasswordPage() {
             </form>
           ) : (
             <form onSubmit={resetPassword} className="space-y-4">
+              {/* Browsers treat the text field before a new-password field as
+                  the username and autofilled the email into the code box. An
+                  explicit read-only username field takes that autofill instead
+                  (and tells password managers which account to update). */}
+              <div>
+                <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  id="reset-email"
+                  name="username"
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  readOnly
+                  className={`${componentStyles.input.base} bg-gray-50 text-gray-700`}
+                />
+              </div>
               <div>
                 <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
                   Reset code
@@ -133,8 +151,10 @@ export default function ForgotPasswordPage() {
                 <input
                   id="code"
                   name="code"
+                  type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
+                  pattern="\d{6}"
                   maxLength={6}
                   required
                   disabled={loading}

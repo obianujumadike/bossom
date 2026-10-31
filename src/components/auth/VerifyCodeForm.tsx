@@ -78,6 +78,9 @@ export function VerifyCodeForm({ email, intro, onVerified, onBack }: VerifyCodeF
           )}
 
           <form onSubmit={submit} className="space-y-4">
+            {/* Hidden username field: gives browser autofill somewhere to put
+                the email other than the code box. */}
+            <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
             <div>
               <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
                 Verification code
