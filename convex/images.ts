@@ -14,7 +14,10 @@ import { ALLOWED_FORMATS, UPLOAD_TYPE, caseFolder, signParams, verifyUploadRespo
 // folder and delivery type the upload may use, then verifies Cloudinary's
 // response signature before recording the image.
 
-export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+// Cloudinary's free plan rejects images over 10 MB. Checking first gives the
+// radiologist a clear message instead of a Cloudinary error. Raise this (and
+// the copy in src/lib/convex/server.ts and the upload page) if the plan changes.
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 export const ownedCaseId = internalQuery({
   args: { caseId: v.string() },

@@ -11,7 +11,7 @@ const CLIENT_ERRORS: Record<string, string> = {
   INVALID_INPUT: 'Some fields are missing or invalid',
   INVALID_PHONE: 'Please enter a valid phone number (e.g. +2348012345678)',
   INVALID_UPLOAD: 'The upload could not be verified. Please try again.',
-  FILE_TOO_LARGE: 'File too large (max 50 MB)',
+  FILE_TOO_LARGE: 'File too large (max 10 MB). Export a smaller JPEG or PNG of the image.',
 }
 
 const UNAVAILABLE: Record<string, string> = {
