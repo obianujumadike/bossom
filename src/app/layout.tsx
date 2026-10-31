@@ -53,9 +53,14 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    // inMemory: the access token is never written to localStorage; the
-    // refresh token lives only in an httpOnly cookie.
-    <ConvexAuthNextjsServerProvider storage="inMemory" shouldHandleCode={false}>
+    // Default localStorage on purpose. It holds only the 1-hour access token
+    // and a "dummy" placeholder; the real refresh token stays in an httpOnly
+    // cookie. storage="inMemory" looks safer but is broken in
+    // @convex-dev/auth 0.0.96: its in-memory store reads a stale snapshot, so
+    // the forced token refresh Convex does right after connecting finds no
+    // refresh token and the browser signs itself out (the profile then
+    // showed as "User" while server-side /api calls kept working).
+    <ConvexAuthNextjsServerProvider shouldHandleCode={false}>
       <html lang="en">
         <head>
           <meta name="apple-mobile-web-app-capable" content="yes" />

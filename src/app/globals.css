@@ -7,11 +7,11 @@
   --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Light only: every page hard-codes light surfaces, so a dark-mode device
+   must not switch the base text colour to near-white (it made unstyled
+   text, like unselected options, almost invisible). */
+:root {
+  color-scheme: light;
 }
 
 body {

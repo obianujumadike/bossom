@@ -94,7 +94,7 @@ function LoginForm() {
                 required
                 disabled={loading}
                 className={`${componentStyles.input.base} ${
-                  loading ? 'opacity-50 cursor-not-allowed' : ''
+                  loading ? 'opacity-70 cursor-not-allowed' : ''
                 }`}
                 placeholder="Enter your email"
               />
@@ -113,7 +113,7 @@ function LoginForm() {
                   required
                   disabled={loading}
                   className={`${componentStyles.input.base} pr-10 ${
-                    loading ? 'opacity-50 cursor-not-allowed' : ''
+                    loading ? 'opacity-70 cursor-not-allowed' : ''
                   }`}
                   placeholder="Enter your password"
                 />
@@ -146,7 +146,7 @@ function LoginForm() {
               type="submit"
               disabled={loading}
               className={`${componentStyles.button.primary} w-full ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
+                loading ? 'opacity-70 cursor-not-allowed' : ''
               }`}
             >
               {loading ? 'Signing in...' : 'Sign In'}

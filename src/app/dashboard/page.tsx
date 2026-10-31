@@ -20,6 +20,7 @@ import {
 import { BossomLogo } from '@/components/ui/BossomLogo'
 import { componentStyles } from '@/lib/design-system'
 import { useAuth } from '@/lib/auth/context'
+import { getRoleName } from '@/lib/auth/permissions'
 
 interface DashboardData {
   total_cases: number
@@ -145,6 +146,8 @@ export default function DashboardPage() {
                 <button
                   onClick={() => setMenuOpen(o => !o)}
                   className="flex items-center gap-2 p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  aria-label="Account menu"
+                  aria-expanded={menuOpen}
                 >
                   <FaUserCircle className="w-6 h-6" />
                   <span className="hidden sm:block text-sm font-medium text-gray-700">
@@ -155,8 +158,18 @@ export default function DashboardPage() {
                 {menuOpen && (
                   <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
                     <div className="px-4 py-3 border-b border-gray-100">
-                      <p className="text-xs text-gray-400">Signed in as</p>
-                      <p className="text-sm font-medium text-gray-900 truncate">{profile?.full_name || user?.email || 'User'}</p>
+                      <p className="text-xs text-gray-500">Signed in as</p>
+                      {profile ? (
+                        <>
+                          <p className="text-sm font-semibold text-gray-900 truncate">{profile.full_name || profile.email}</p>
+                          {profile.full_name && <p className="text-xs text-gray-500 truncate">{profile.email}</p>}
+                          <span className="inline-block mt-1.5 px-2 py-0.5 rounded-full bg-bossom-pink-50 text-bossom-pink-700 text-xs font-medium">
+                            {getRoleName(profile.role)} account
+                          </span>
+                        </>
+                      ) : (
+                        <p className="mt-1 h-4 w-32 rounded bg-gray-100 animate-pulse" aria-label="Loading account" />
+                      )}
                     </div>
                     <div className="py-1">
                       <Link

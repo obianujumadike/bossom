@@ -62,7 +62,7 @@ export default function ForgotPasswordPage() {
     setLoading(false)
   }
 
-  const inputClass = `${componentStyles.input.base} ${loading ? 'opacity-50 cursor-not-allowed' : ''}`
+  const inputClass = `${componentStyles.input.base} ${loading ? 'opacity-70 cursor-not-allowed' : ''}`
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-bossom-pink-50 to-bossom-pink-100 flex items-center justify-center p-4">
@@ -119,13 +119,31 @@ export default function ForgotPasswordPage() {
                 type="submit"
                 disabled={loading}
                 aria-busy={loading}
-                className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {loading ? 'Sending...' : 'Send Reset Code'}
               </button>
             </form>
           ) : (
             <form onSubmit={resetPassword} className="space-y-4">
+              {/* Browsers treat the text field before a new-password field as
+                  the username and autofilled the email into the code box. An
+                  explicit read-only username field takes that autofill instead
+                  (and tells password managers which account to update). */}
+              <div>
+                <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  id="reset-email"
+                  name="username"
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  readOnly
+                  className={`${componentStyles.input.base} bg-gray-50 text-gray-700`}
+                />
+              </div>
               <div>
                 <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
                   Reset code
@@ -133,8 +151,10 @@ export default function ForgotPasswordPage() {
                 <input
                   id="code"
                   name="code"
+                  type="text"
                   inputMode="numeric"
                   autoComplete="one-time-code"
+                  pattern="\d{6}"
                   maxLength={6}
                   required
                   disabled={loading}
@@ -188,7 +208,7 @@ export default function ForgotPasswordPage() {
                 type="submit"
                 disabled={loading}
                 aria-busy={loading}
-                className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`${componentStyles.button.primary} w-full ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {loading ? 'Updating…' : 'Update Password'}
               </button>

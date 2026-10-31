@@ -254,7 +254,7 @@ export default function UploadPage() {
                     onClick={handleStartAnalysis}
                     disabled={isProcessing || hasErrors}
                     className={`${componentStyles.button.primary} ${
-                      isProcessing || hasErrors ? 'opacity-50 cursor-not-allowed' : ''
+                      isProcessing || hasErrors ? 'opacity-70 cursor-not-allowed' : ''
                     }`}
                   >
                     {isProcessing ? (
@@ -419,7 +419,7 @@ export default function UploadPage() {
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">Requirements</h4>
                 <ul className="space-y-1">
-                  <li>• Maximum file size: 50MB</li>
+                  <li>• Maximum file size: 10 MB (export large DICOMs as JPEG or PNG)</li>
                   <li>• Minimum resolution: 1024x1024</li>
                   <li>• Bilateral mammogram views preferred</li>
                   <li>• Clear, high-quality images</li>
